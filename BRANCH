@@ -1,0 +1,2 @@
+#!/bin/bash
+zenity --timeout 2 --info --text "$(git branch)"
