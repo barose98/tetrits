@@ -1,8 +1,8 @@
 .emacs_saves
 build
 *.bak
-./gg
-./b
-./c
-./r
+gg
+b
+c
+r
 my_paths.cmake
