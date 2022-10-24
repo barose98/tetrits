@@ -4,6 +4,7 @@
 #include <vector>
 #include <stdint.h>
 #include <stdbool.h>
+#include <time.h>
 #include "SDLGame.h"
 #include "YanceyShape.h"
 #include "colors_config.h"
@@ -12,11 +13,17 @@
 #define PARENTGAME SDLGame
 #define WINDOWFLAGS SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_JOYSTICK
 
-#define WIND_W 1280
-#define WIND_H 640
+#define WIND_H 800
+#define WIND_W 400
 
-#define FRAMERATE 10
+#define FRAMERATE 20
 #define BLOCKSIZE 20 // * 2
+
+#define SPAWN {200,60}
+//#define FALLS {0,-20}
+
+#define LEFTMOVE Yancey_Vector({-1 , 0})
+#define RIGHTMOVE Yancey_Vector({1 , 0})
 
 #define GAMEBACKGROUND YANCEYCOLOR_DarkBlue
 #define BLOCKCOLOR YANCEYCOLOR_White
@@ -41,9 +48,13 @@ public:
   ~Tetrits();
   bool init(uint32_t flags);
   bool update() override;
-
+  bool spawn(Tetromino& t);
+  
   Tetromino active_tet;
-SDL_Joystick *joystick;
+  SDL_Joystick *joystick;
+  std::vector<uint8_t> shapes = {'i','j','l','o','s','t','z'};
+  Yancey_Vector  FALLS = {0,1};
+  
 //EVENTS
 
 bool handle_events() 
@@ -59,7 +70,6 @@ bool handle_events()
           case SDL_WINDOWEVENT:
 	    if(ev.window.event == SDL_WINDOWEVENT_SIZE_CHANGED){
 	        SDL_GetWindowSize(this->window,&this->wind_w,&this->wind_h);
-
 	    }
 	    break;
           case SDL_KEYDOWN:
@@ -99,24 +109,27 @@ bool handle_key( SDL_KeyboardEvent *key )
   switch(key->keysym.sym)
     {
     case SDLK_ESCAPE:
+      this->spawn(this->active_tet);
       break;
     case SDLK_LEFT:
     case SDLK_a:
-      this->active_tet.location.x -= 2 * BLOCKSIZE;
+      this->active_tet.location += LEFTMOVE * (2 * BLOCKSIZE);
       break;
     case SDLK_RIGHT:
     case SDLK_d:
-      this->active_tet.location.x += 2 * BLOCKSIZE;
+      this->active_tet.location += RIGHTMOVE * (2 * BLOCKSIZE);
       break;
+    case SDLK_s:
+    case SDLK_DOWN:
+      this->active_tet.location += this->FALLS * (2 * BLOCKSIZE);
+      break;      
     case SDLK_w:
       this->active_tet.rotate(false);
       break;
     case SDLK_e:
       this->active_tet.rotate(true);
       break;
-    case SDLK_DOWN:
-      //this->dx = this->dx.get_normal(true);
-      break;
+
     }
 
   return true;
