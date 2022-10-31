@@ -13,14 +13,18 @@
 #define WINDOWFLAGS SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_JOYSTICK
 
 #define FALLING true
-//#define FALLING false
+#define USEJOY 
 
-#define FRAMERATE 7
+#define FRAMERATE 5
 #define BLOCKSIZE 20 // * 2
 #define BLOCKSIZE2 (BLOCKSIZE * 2) // * 1
 
 #define WIND_H (BLOCKSIZE2 * 21)
 #define WIND_W  (BLOCKSIZE2 * 11)
+
+#define WALLEXT Yancey_Vector({2 , 2})
+#define LANDSEXT Yancey_Vector({0 , 2})
+#define HITSEXT Yancey_Vector({2 , 0})
 
 #define BLOCK Yancey_Vector({BLOCKSIZE,BLOCKSIZE})
 
@@ -48,8 +52,8 @@ public:
   Tetromino(const Tetromino &t);
   virtual ~Tetromino(){};
   void rotate(bool cw);
-  bool lands(void* t);
-  bool hits_wall(Yancey_rect wall);
+  bool lands_hits(void* t,Yancey_Vector ext);
+  bool hits(void* t);
   bool hits_block(Yancey_rect other, Yancey_Vector ext);
   Yancey_Vector location;
   Yancey_Color color;
@@ -65,7 +69,7 @@ public:
   ~Tetrits();
   bool init(uint32_t flags);
   bool update() override;
-  bool spawn(Tetromino& t);
+  bool spawn();
 
     
   Tetromino active_tet;
@@ -145,18 +149,20 @@ bool handle_key( SDL_KeyboardEvent *key )
   switch(key->keysym.sym)
     {
     case SDLK_ESCAPE:
-      this->spawn(this->active_tet);
+      this->spawn();
       break;
     case SDLK_LEFT:
     case SDLK_a:
       resolve = MOVE * (BLOCKSIZE);
-      if(!this->active_tet.hits_block(this->left_wall, Yancey_Vector({2,2})))
+      if(!this->active_tet.hits_block(this->left_wall, WALLEXT) &&
+	 !this->active_tet.lands_hits(this, HITSEXT))
 	this->active_tet.location -= MOVE * (BLOCKSIZE2);
       break;
     case SDLK_RIGHT:
     case SDLK_d:
       resolve = MOVE * (BLOCKSIZE) * -1;
-      if(!this->active_tet.hits_block(this->right_wall, Yancey_Vector({2,2})))
+      if(!this->active_tet.hits_block(this->right_wall, WALLEXT) &&
+	 !this->active_tet.lands_hits(this, HITSEXT))	 
 	      this->active_tet.location += MOVE * (BLOCKSIZE2);
       break;
     case SDLK_q:
@@ -167,7 +173,8 @@ bool handle_key( SDL_KeyboardEvent *key )
     case SDLK_s:
     case SDLK_DOWN:
       resolve = this->FALLS * (BLOCKSIZE) * -1;
-      if(!this->active_tet.lands(this))
+      if(this->active_tet.hits_block(this->floor, WALLEXT) &&
+	 !this->active_tet.lands_hits(this, LANDSEXT))
 	this->active_tet.location += this->FALLS * (BLOCKSIZE);
       break;
     

@@ -25,14 +25,14 @@ bool Tetrits::init(uint32_t fl)
   PARENTGAME::init(WINDOWFLAGS);
   std::srand(time(0));
   this->init_floor();
-  this->spawn(this->active_tet);
+  this->spawn();
   return true;
 }
 
-bool Tetrits::spawn(Tetromino &t)
+bool Tetrits::spawn()
 {
-  t.has_landed = false;
-  for(Tetrits_Block &b : t.blocks)
+  this->active_tet.has_landed = false;
+  for(Tetrits_Block &b : this->active_tet.blocks)
     {
       //     b.color = t.color;
       b.location = b.location * BLOCKSIZE + this->active_tet.location;
@@ -43,21 +43,21 @@ bool Tetrits::spawn(Tetromino &t)
   if(shapes[sh] == 'i'){SPAWN =  Yancey_Vector({11,6}) *BLOCKSIZE;}
   else if(shapes[sh] == 'o'){SPAWN =  Yancey_Vector({11,4}) *BLOCKSIZE;}
   else {SPAWN=  Yancey_Vector({10,5}) *BLOCKSIZE;}
-  t = Tetromino(SPAWN,this->shapes[sh]);
+  this->active_tet = Tetromino(SPAWN,this->shapes[sh]);
   return true;
 }
 
-bool Tetromino::lands(void* v)
+bool Tetromino::lands_hits(void* v, Yancey_Vector ext)
 {
   Tetrits* t = (Tetrits*)v;
-  if(this->hits_block(t->floor, Yancey_Vector({2,2})) )return true;
   for(Tetrits_Block b : t->obstacles)
     {
-      if(this->hits_block(b, Yancey_Vector({0,2})))
+      if(this->hits_block(b, ext))
 	{
 	  return true;
 	}
     }
+  return false;
 }
 
 bool Tetromino::hits_block(Yancey_rect other, Yancey_Vector ext)
@@ -81,13 +81,14 @@ bool Tetrits::update()
     {
        this->render_clear( GAMEBACKGROUND );
        this->set_render_color(BLOCKCOLOR);
-       this->active_tet.has_landed = this->active_tet.lands(this);
-#if(FALLING)
-       if(!this->active_tet.has_landed)
+       //this->active_tet.has_landed = 
+#ifdef FALLING
+       if(!this->active_tet.hits_block(this->floor, WALLEXT ) &&
+	 !this->active_tet.lands_hits(this, LANDSEXT ))
 	 {
 	   this->active_tet.location += this->FALLS;
 	 }else{
-	 this->spawn(this->active_tet);
+	 this->spawn();
 	   }
 #endif       
        this->set_render_color(this->active_tet.color);
@@ -179,6 +180,7 @@ Tetromino::Tetromino(Yancey_Vector location, uint8_t shape):location(location),s
 }
 Tetromino::Tetromino(){}//:Tetromino(SPAWN,'l'){}
 Tetromino::Tetromino(const Tetromino &t):location(t.location),shape(t.shape){}
+
 void Tetromino::rotate(bool cw)
 {
 this->orientation = this->orientation.get_normal(cw);
