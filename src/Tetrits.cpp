@@ -26,15 +26,20 @@ bool Tetrits::init(uint32_t fl)
   std::srand(time(0));
   this->init_floor();
   this->spawn();
+  this->score = 0;
   return true;
+}
+
+void Tetrits::reset()
+{
+  this->obstacles.clear();
+  this->score = 0;
 }
 
 bool Tetrits::spawn()
 {
-  this->active_tet.has_landed = false;
   for(Tetrits_Block &b : this->active_tet.blocks)
     {
-      //     b.color = t.color;
       b.location = b.location * BLOCKSIZE + this->active_tet.location;
       this->obstacles.push_back(b);
     }
@@ -50,38 +55,48 @@ bool Tetrits::spawn()
 bool Tetromino::lands_hits(void* v, Yancey_Vector ext)
 {
   Tetrits* t = (Tetrits*)v;
-  for(Tetrits_Block b : t->obstacles)
-    {
-      if(this->hits_block(b, ext))
-	{
-	  return true;
-	}
-    }
-  return false;
+  return std::any_of(t->obstacles.begin(), t->obstacles.end(), [this,ext](Tetrits_Block b){ return this->hits_block(b,ext);});
 }
 
 bool Tetromino::hits_block(Yancey_rect other, Yancey_Vector ext)
 {
   other.size += (BLOCK * 2) + ext;
-  for(Tetrits_Block block : this->blocks)
-    {
-      block.location *=  BLOCKSIZE ;
-      block.location += this->location ;
-      if(other.collides_with(block.location))
-	{
-	  return true;
-	}	
-    }
-  return false;
-}
+  return std::any_of(this->blocks.begin(), this->blocks.end(), [this,&other](Tetrits_Block b){
+      b.location *= BLOCKSIZE;
+      b.location += this->location; 
+      return other.collides_with(b.location);      
+    });
+ }
 
+void Tetrits::settle()
+{
+  auto row_compare = [] (Tetrits_Block &b1, Tetrits_Block &b2) {return b1.location.y < b2.location.y;};
+  std::sort(this->obstacles.begin(),this->obstacles.end(),row_compare);
+  
+  for(int i = BLOCKSIZE2;i < this->wind_h;i += BLOCKSIZE2)
+    {
+      auto lambda_obj = [i] (Tetrits_Block b) {return b == i;};      
+
+      int c = std::count_if(this->obstacles.begin(), this->obstacles.end(), lambda_obj);
+      // row i is full
+      if(c == 10)
+	{	
+	  auto row_start = std::find_if(this->obstacles.begin(), this->obstacles.end(), lambda_obj);
+	  this->obstacles.erase(row_start,row_start+10);
+	  std::for_each(this->obstacles.begin(),row_start,[](Tetrits_Block &b) {b.location += SETTLE;});
+	  this->score += 10;
+	  log_i<< "SCORE!! " << this->score <<std::endl;
+	}
+      
+    }
+}
 bool Tetrits::update()
 {
   if(PARENTGAME::frames.ready)
     {
        this->render_clear( GAMEBACKGROUND );
        this->set_render_color(BLOCKCOLOR);
-       //this->active_tet.has_landed = 
+       this->settle();
 #ifdef FALLING
        if(!this->active_tet.hits_block(this->floor, WALLEXT ) &&
 	 !this->active_tet.lands_hits(this, LANDSEXT ))
@@ -113,10 +128,9 @@ bool Tetrits::update()
        this->draw_rectangle(this->left_wall.location-Yancey_Vector({2,2}),4,4);
        this->draw_rectangle(this->right_wall.location-Yancey_Vector({2,2}),4,4);
        //walls, floor
-       /*
- 
 	 this->draw_rectangle(this->floor.location - Yancey_Vector({this->floor.size.x/2, this->floor.size.y/2}),
 			    this->floor.size.x,this->floor.size.y);
+	        /*
        this->draw_rectangle(this->ceiling.location - Yancey_Vector({this->ceiling.size.x/2, this->ceiling.size.y/2}),
 			    this->ceiling.size.x,this->ceiling.size.y);      
        this->set_render_color(WALLCOLOR);

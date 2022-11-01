@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <iostream>
 #include <vector>
+#include <algorithm>
 #include <stdint.h>
 #include <stdbool.h>
 #include <time.h>
@@ -27,12 +28,13 @@
 #define HITSEXT Yancey_Vector({2 , 0})
 
 #define BLOCK Yancey_Vector({BLOCKSIZE,BLOCKSIZE})
+#define SETTLE Yancey_Vector({0,BLOCKSIZE2})
 
 #define MOVE Yancey_Vector({1 , 0})
 
 #define GAMEBACKGROUND YANCEYCOLOR_Black
 #define BLOCKCOLOR YANCEYCOLOR_Blue
-#define FLOORCOLOR YANCEYCOLOR_Red
+#define FLOORCOLOR YANCEYCOLOR_SlateGray
 #define WALLCOLOR YANCEYCOLOR_White
 
 class Tetrits_Block : public Yancey_rect{
@@ -42,6 +44,8 @@ public:
   ~Tetrits_Block();
   Tetrits_Block(Yancey_Vector loc);
   Yancey_Color color;
+  bool operator ==(const Tetrits_Block &b){return this->location.y == b.location.y;}
+  bool operator ==(int i){return this->location.y == i;}
   };
 
 class Tetromino 
@@ -52,14 +56,12 @@ public:
   Tetromino(const Tetromino &t);
   virtual ~Tetromino(){};
   void rotate(bool cw);
-  bool lands_hits(void* t,Yancey_Vector ext);
-  bool hits(void* t);
+  bool lands_hits(void* t, Yancey_Vector ext);
   bool hits_block(Yancey_rect other, Yancey_Vector ext);
   Yancey_Vector location;
   Yancey_Color color;
   std::vector<Tetrits_Block> blocks;
-  bool has_landed;
-  uint8_t shape;  
+   uint8_t shape;  
   Yancey_Vector orientation;
 };
 
@@ -70,12 +72,14 @@ public:
   bool init(uint32_t flags);
   bool update() override;
   bool spawn();
+  void settle();
+  void reset();
 
-    
+  int score;
   Tetromino active_tet;
   SDL_Joystick *joystick;
   std::vector<uint8_t> shapes = {'i','j','l','o','s','t','z'};
-  Yancey_Vector  FALLS = {0,5};
+  Yancey_Vector  FALLS = {0,10};
   std::vector<Tetrits_Block> obstacles = {};
   Yancey_rect floor;
   Yancey_rect ceiling;
@@ -149,7 +153,7 @@ bool handle_key( SDL_KeyboardEvent *key )
   switch(key->keysym.sym)
     {
     case SDLK_ESCAPE:
-      this->spawn();
+      this->reset();
       break;
     case SDLK_LEFT:
     case SDLK_a:
