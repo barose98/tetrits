@@ -1,8 +1,8 @@
 #include "Tetrits.h"
 #include "debug_config.h"
-std::vector<Yancey_Vector> TETR_I = { {-1,-1}, {-1,1}, {-1,3}, {-1,-3}};
-std::vector<Yancey_Vector> TETR_J = { {0,0}, {0,-2}, {0,2}, {-2, 2}};
-std::vector<Yancey_Vector> TETR_L = { {0,0}, {0,-2}, {0,2}, {2, 2}};
+std::vector<Yancey_Vector> TETR_I = { {-1,-1}, {-3,-1}, {1,-1}, {3,-1}};
+std::vector<Yancey_Vector> TETR_J = { {0,0}, {-2,0}, {2,0}, {-2, -2}};
+std::vector<Yancey_Vector> TETR_L = { {0,0}, {-2,0}, {2,0}, {2, -2}};
 std::vector<Yancey_Vector> TETR_O = { {-1,-1}, {1,-1}, {-1,1}, {1,1}};
 std::vector<Yancey_Vector> TETR_S = { {0,0}, {-2,0}, {0,-2}, {2,-2}};
 std::vector<Yancey_Vector> TETR_T = { {0,0}, {-2,0}, {2,0}, {0,-2}};
@@ -11,27 +11,31 @@ std::vector<Yancey_Vector> TETR_Z = { {0,0}, {2,0}, {0,-2}, {-2,-2}};
 float BLOCKRAD = sqrt(BLOCKSIZE * BLOCKSIZE * 2);
 
 Tetrits_Block::Tetrits_Block(){}
-Tetrits_Block::Tetrits_Block(const Tetrits_Block &t):Yancey_rect(t.id,t.solid,BLOCK *2,t.location)
+Tetrits_Block::Tetrits_Block(const Tetrits_Block &t):Yancey_rect(t.id,t.solid,t.size,t.location)
 {
   this->color=t.color;
 }
 Tetrits_Block::~Tetrits_Block(){}
-Tetrits_Block::Tetrits_Block(Yancey_Vector loc):Yancey_rect(0,true,BLOCK *2,loc) { }
+Tetrits_Block::Tetrits_Block(Yancey_Vector loc, Yancey_Vector size):Yancey_rect(0,true,size,loc) { }
 
 Tetrits::Tetrits() : PARENTGAME("tetrits",WIND_W,WIND_H,FRAMERATE){}
 Tetrits::~Tetrits(){}
 bool Tetrits::init(uint32_t fl)
 {
   PARENTGAME::init(WINDOWFLAGS);
-  std::srand(time(0));
+
   this->init_floor();
+  std::srand(time(0));
+  this->next_tet = Tetromino(NEXTLOC, BLOCK_N * 2, this->shapes[std::round(std::rand() % 7)]);
   this->spawn();
-  this->score = 0;
+  this->reset();
+
   return true;
 }
 
 void Tetrits::reset()
 {
+  this->spawn();
   this->obstacles.clear();
   this->score = 0;
 }
@@ -43,29 +47,69 @@ bool Tetrits::spawn()
       b.location = b.location * BLOCKSIZE + this->active_tet.location;
       this->obstacles.push_back(b);
     }
-  Yancey_Vector  SPAWN;
-  uint8_t sh = std::round(std::rand() % 7);
-  if(shapes[sh] == 'i'){SPAWN =  Yancey_Vector({11,6}) *BLOCKSIZE;}
-  else if(shapes[sh] == 'o'){SPAWN =  Yancey_Vector({11,4}) *BLOCKSIZE;}
-  else {SPAWN=  Yancey_Vector({10,5}) *BLOCKSIZE;}
-  this->active_tet = Tetromino(SPAWN,this->shapes[sh]);
+  Yancey_Vector  spawn;  
+  switch(this->next_tet.shape){
+  case 'i':
+  case 'o':
+    spawn = SPAWN_IO;
+    break;
+  default:
+    spawn = SPAWN_JLSTZ;
+  }
+  Yancey_Vector spawnadj = {WIND_W % (WIND_W - int(this->falls.x)), WIND_H % (WIND_H - int(this->falls.y))};
+  this->active_tet = Tetromino(spawn, BLOCK * 2, this->next_tet.shape);
+
+  this->next_tet = Tetromino(NEXTLOC * BLOCKSIZE, BLOCK_N * 2, this->shapes[std::round(std::rand() % 7)]);
+  //log_i<< spawnadj.x<<" sa "<< spawnadj.y <<std::endl;
   return true;
 }
 
-bool Tetromino::lands_hits(void* v, Yancey_Vector ext)
+
+bool Tetrits::hits_obstacle(Tetromino &t, std::vector<Yancey_Vector> ext)
 {
-  Tetrits* t = (Tetrits*)v;
-  return std::any_of(t->obstacles.begin(), t->obstacles.end(), [this,ext](Tetrits_Block b){ return this->hits_block(b,ext);});
+  return std::any_of(ext.begin(), ext.end(), [&t,this](Yancey_Vector e){ return this->hits_obstacle(t,e);});
+}
+bool Tetrits::hits_obstacle(Tetromino &t, Yancey_Vector ext)
+{
+  return std::any_of(this->obstacles.begin(), this->obstacles.end(), [&t,ext](Tetrits_Block b){ return t.hits_block(b,ext);});
+}
+bool Tetrits::within_bounds(Tetromino &t, Yancey_Vector &ext)
+{
+  Yancey_Vector adjust = {0,0};
+  bool ret = std::all_of(t.blocks.begin(), t.blocks.end(), [this,&t,&ext,&adjust](Tetrits_Block b){
+      b.location *= BLOCKSIZE;
+      b.location += t.location;      
+      bool ret2 = b.location.x > 0 && b.location.x < WIND_W && b.location.y < WIND_H;
+      /*
+      if(ext.x < 0)
+	adjust = {0 - b.location.x, 0 } ;
+      else if(ext.x > 0)
+	adjust = {WIND_W - b.location.x, 0 } ;
+      else if(ext.y)
+	adjust = {0,  b.location.y - WIND_H} ;
+	*/
+      if(!ret2) ext = b.location;       
+      return ret2;
+    });
+      return ret;
 }
 
 bool Tetromino::hits_block(Yancey_rect other, Yancey_Vector ext)
 {
-  other.size += (BLOCK * 2) + ext;
-  return std::any_of(this->blocks.begin(), this->blocks.end(), [this,&other](Tetrits_Block b){
+  Yancey_Vector overlap = {0,0};
+  bool ret = std::any_of(this->blocks.begin(), this->blocks.end(), [this,ext,&other,&overlap](Tetrits_Block b){
       b.location *= BLOCKSIZE;
       b.location += this->location; 
-      return other.collides_with(b.location);      
+      return b.collides_with(other,overlap);      
     });
+     
+ if(ret) {
+   log_i<<(BLOCKSIZE + overlap.y/2)<<std::endl;
+    this->location.y -= overlap.y/2 + BLOCKSIZE;
+  }
+   
+   
+  return ret;
  }
 
 void Tetrits::settle()
@@ -73,50 +117,46 @@ void Tetrits::settle()
   auto row_compare = [] (Tetrits_Block &b1, Tetrits_Block &b2) {return b1.location.y < b2.location.y;};
   std::sort(this->obstacles.begin(),this->obstacles.end(),row_compare);
   
-  for(int i = BLOCKSIZE2;i < this->wind_h;i += BLOCKSIZE2)
+  for(int i = WIND_H - BLOCKSIZE;i > 0 ;i -= BLOCKSIZE2)
     {
       auto lambda_obj = [i] (Tetrits_Block b) {return b == i;};      
-
-      int c = std::count_if(this->obstacles.begin(), this->obstacles.end(), lambda_obj);
+      int count = std::count_if(this->obstacles.begin(), this->obstacles.end(), lambda_obj);
+      // row i is empty
+      if(count == 0){
+	//	log_i<<'r'<<i<<std::endl;
+	break;
+      }
       // row i is full
-      if(c == 10)
-	{	
+      else  if(count == 10)
+	{
 	  auto row_start = std::find_if(this->obstacles.begin(), this->obstacles.end(), lambda_obj);
-	  this->obstacles.erase(row_start,row_start+10);
+	  this->obstacles.erase(row_start,row_start+count);
 	  std::for_each(this->obstacles.begin(),row_start,[](Tetrits_Block &b) {b.location += SETTLE;});
-	  this->score += 10;
+	  this->score += count;
 	  log_i<< "SCORE!! " << this->score <<std::endl;
 	}
       
     }
+
 }
 bool Tetrits::update()
 {
-  if(PARENTGAME::frames.ready)
+  if(PARENTGAME::frames.ready && !this->paused)
     {
        this->render_clear( GAMEBACKGROUND );
        this->set_render_color(BLOCKCOLOR);
-       this->settle();
+	this->settle();
 #ifdef FALLING
-       if(!this->active_tet.hits_block(this->floor, WALLEXT ) &&
-	 !this->active_tet.lands_hits(this, LANDSEXT ))
-	 {
-	   this->active_tet.location += this->FALLS;
-	 }else{
-	 this->spawn();
-	   }
+	      this->move_active(this->falls);
+	      //this->spawn();	   
 #endif       
-       this->set_render_color(this->active_tet.color);
-       for(Tetrits_Block block : this->active_tet.blocks)
-	 {
-	   //log_i<<block.id<<' ';
-	   block.location = block.location * BLOCKSIZE + this->active_tet.location;
-	   this->draw_rectangle(block.location - BLOCK , BLOCKSIZE2, BLOCKSIZE2);
-	   this->draw_rectangle(block.location - BLOCK / 2 , BLOCKSIZE, BLOCKSIZE);
-	 }
 
+       this->draw(this->active_tet);
+       this->draw(this->next_tet);
+       
        for(Tetrits_Block block : this->obstacles)
 	 {
+	   //log_i<<'o'<<block.location.y<<std::endl;
 	   this->set_render_color(block.color);
 	   this->draw_rectangle(block.location - BLOCK , BLOCKSIZE2, BLOCKSIZE2);
 	   this->draw_rectangle(block.location - BLOCK / 2 , BLOCKSIZE, BLOCKSIZE);
@@ -125,20 +165,11 @@ bool Tetrits::update()
        this->set_render_color(FLOORCOLOR);
        //little debug squares
        this->draw_rectangle(this->active_tet.location-Yancey_Vector({2,2}),4,4);
-       this->draw_rectangle(this->left_wall.location-Yancey_Vector({2,2}),4,4);
-       this->draw_rectangle(this->right_wall.location-Yancey_Vector({2,2}),4,4);
+       //this->draw_rectangle(this->left_wall.location-Yancey_Vector({2,2}),4,4);
+       //this->draw_rectangle(this->right_wall.location-Yancey_Vector({2,2}),4,4);
        //walls, floor
-	 this->draw_rectangle(this->floor.location - Yancey_Vector({this->floor.size.x/2, this->floor.size.y/2}),
-			    this->floor.size.x,this->floor.size.y);
-	        /*
-       this->draw_rectangle(this->ceiling.location - Yancey_Vector({this->ceiling.size.x/2, this->ceiling.size.y/2}),
-			    this->ceiling.size.x,this->ceiling.size.y);      
-       this->set_render_color(WALLCOLOR);
-       this->draw_rectangle({BLOCKSIZE * -1,0},
-			    this->left_wall.size.x,this->left_wall.size.y);	   
-       this->draw_rectangle({this->right_wall.location.x - BLOCKSIZE,0},
-			    this->right_wall.size.x,this->right_wall.size.y);	   
-	*/		 
+        this->draw_rectangle(this->floor.location - this->floor.size/2, this->floor.size.x,this->floor.size.y);
+		 
        this->render_present(0);
 
        PARENTGAME::frames.ready = false;
@@ -147,13 +178,13 @@ bool Tetrits::update()
 }
 
 
-Tetromino::Tetromino(Yancey_Vector location, uint8_t shape):location(location),shape(shape),orientation({1,0})
+Tetromino::Tetromino(Yancey_Vector location, Yancey_Vector blocksize, uint8_t shape):location(location),shape(shape),orientation({1,0})
 {
   std::vector<Yancey_Vector> locs;
   switch(shape){
   case 'i':
     locs = TETR_I;
-    this->color = YANCEYCOLOR_Turquoise;
+    this->color = YANCEYCOLOR_Cyan;
     break;
   case 'j':
     locs = TETR_J  ;
@@ -185,20 +216,75 @@ Tetromino::Tetromino(Yancey_Vector location, uint8_t shape):location(location),s
   int i=0;
   for(Yancey_Vector l : locs)
     {
-    Tetrits_Block b(l);
-    b.id = i;
-    b.color=this->color;
-    blocks.push_back(b);
-    i++;
+      Tetrits_Block b(l,blocksize);
+      b.id = i;
+      b.color=this->color;
+      //b.size = blocksize;
+      //     log_i<<blocksize.x<<' '<<b.size.x<<std::endl;
+      this->blocks.push_back(b);
+      i++;
     }
 }
-Tetromino::Tetromino(){}//:Tetromino(SPAWN,'l'){}
-Tetromino::Tetromino(const Tetromino &t):location(t.location),shape(t.shape){}
+Tetromino::Tetromino(){}
 
+Tetromino::Tetromino(const Tetromino &t):location(t.location),shape(t.shape),blocks(t.blocks){}
+
+void Tetrits::rotate_active(bool cw)
+{  
+  Tetromino test = this->active_tet;
+  test.rotate(cw);
+  Yancey_Vector bloc = {0,0};
+  bool ib =this->within_bounds(test, bloc);    
+  if(ib)
+     {
+       if(!hits_obstacle(test,{EXT_L,EXT_R,EXT_D}))
+	   this->active_tet.rotate(cw);	 
+     }else{
+	Yancey_Vector move = {0,0};
+	if(bloc.x < 0)     test.location.x  += (0- bloc.x)*2;
+	if(bloc.x > WIND_W)test.location.x  += (WIND_W - bloc.x)*2;
+	
+       if(!hits_obstacle(test,{EXT_L,EXT_R,EXT_D}))
+	 {	   
+	   log_i<<WIND_W <<'-'<< bloc.x*2 <<'='<< move.x  <<std::endl;
+	   this->active_tet.rotate(cw);
+	   this->active_tet.location = test.location;
+	 }
+       }
+}
+void Tetrits::move_active(Yancey_Vector move)
+  {
+      Tetromino test = this->active_tet;
+      test.location += move;
+      Yancey_Vector adj = {0,0};
+      if(this->within_bounds(test,adj) && !this->hits_obstacle(test,adj))
+	this->active_tet.location += move;
+  }
 void Tetromino::rotate(bool cw)
-{
+{  
+  // log_i<< test.blocks.size() <<std::endl;  
 this->orientation = this->orientation.get_normal(cw);
- for(Tetrits_Block &b : this->blocks)
+for(Tetrits_Block &b : this->blocks)
    b.location = b.location.get_normal(cw);
 }
     
+void Tetrits::draw_score()
+{
+  Yancey_Digit d(0);
+  d.size = {20,20};
+  d.location = {10,10};
+  d.draw();
+}
+
+void Tetrits::draw(Tetromino &t)
+{
+         this->set_render_color(t.color);
+       for(Tetrits_Block block : t.blocks)
+	 {
+	   block.location = block.location * block.size.x /2 + t.location;
+	   this->draw_rectangle(block.location - block.size / 2 , block.size.x, block.size.y);
+	   this->draw_rectangle(block.location - block.size / 4 , block.size.x /2, block.size.y /2);
+	   // log_i<< block.location.x <<std::endl;
+	 }
+
+}

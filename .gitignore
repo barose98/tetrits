@@ -6,3 +6,4 @@ b
 c
 r
 my_paths.cmake
+pico_sdk_import.cmake
