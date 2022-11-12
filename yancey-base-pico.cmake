@@ -10,6 +10,7 @@ ${YANCEY_BASE_DIR}/src/YanceyBase.cpp
 ${YANCEY_BASE_DIR}/src/PicoGame.cpp
 ${YANCEY_BASE_DIR}/src/SSD1306Game.cpp
 ${YANCEY_BASE_DIR}/src/YanceyShape.cpp
+${YANCEY_BASE_DIR}/src/YanceyVector.cpp
 ${SSD1306_BASE_DIR}/ssd1306.c
 )
 target_compile_definitions(${LIB_NAME} PUBLIC DEBUG)

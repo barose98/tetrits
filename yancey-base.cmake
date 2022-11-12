@@ -16,6 +16,7 @@ ${BASE_DIR}/src/YanceyBase.cpp
 ${BASE_DIR}/src/SDLGame.cpp
 ${BASE_DIR}/src/YanceyShape.cpp
 ${BASE_DIR}/src/YanceyDigit.cpp
+${BASE_DIR}/src/YanceyVector.cpp
 )
 target_compile_definitions(${LIB_NAME} PUBLIC DEBUG)
 

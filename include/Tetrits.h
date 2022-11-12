@@ -14,10 +14,10 @@
 #define PARENTGAME SDLGame
 #define WINDOWFLAGS SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_JOYSTICK
 
-//#define FALLING true
+#define FALLING true
 #define USEJOY 
 
-#define FRAMERATE 5
+#define FRAMERATE 10
 #define FALLS Yancey_Vector({0,20})
 
 #define BLOCKSIZE 20 // * 2
@@ -33,6 +33,9 @@
 #define SPAWN_JLSTZ Yancey_Vector({9,3}) * BLOCKSIZE
 #define SETTLE Yancey_Vector({0,BLOCKSIZE2})
 #define NEXTLOC Yancey_Vector({17,2})
+#define SCORELOC Yancey_Vector({90,30})
+#define DIGITSIZE Yancey_Vector({10,20})// x*2 y*2
+#define SCORESIZE Yancey_Vector({90,40})
 
 #define MOVE Yancey_Vector({BLOCKSIZE2 , 0})
 #define SPEEDINCR 1
@@ -49,6 +52,7 @@
 #define BLOCKCOLOR YANCEYCOLOR_Blue
 #define FLOORCOLOR YANCEYCOLOR_SlateGray
 #define WALLCOLOR YANCEYCOLOR_White
+#define SCORECOLOR YANCEYCOLOR_Cyan
 
 class Tetrits_Block : public Yancey_rect{
 public:
@@ -86,10 +90,11 @@ public:
   bool update() override;
   bool spawn();
   void rotate_active(bool cw);
-  void move_active(Yancey_Vector m);
+  bool move_active(Yancey_Vector m);
   void settle();
   void reset();
   void draw_score();
+  void update_score(int score);
   bool hits_obstacle(Tetromino &t, std::vector<Yancey_Vector> ext);
   bool hits_obstacle(Tetromino &t, Yancey_Vector ext);
   bool within_bounds(Tetromino &t, Yancey_Vector &ext);
@@ -97,6 +102,7 @@ public:
   void draw(Tetromino &t);
   
   int score;
+  std::vector<Yancey_Digit> score_digits;
   Tetromino active_tet;
   Tetromino next_tet;
   SDL_Joystick *joystick;
@@ -106,27 +112,13 @@ public:
 
   std::vector<Tetrits_Block> obstacles = {};
   Yancey_rect floor;
-  /*
- 
-  Yancey_rect ceiling;
-  Yancey_rect left_wall;
-  Yancey_rect right_wall;
-     */
+
   void init_floor()
   {
   int i = 0;
   int j=WIND_H;
-  //  for(i; i<=WIND_W+BLOCKSIZE2;i+=(BLOCKSIZE2))
-    //    this->floor.push_back(Tetrits_Block(Yancey_Vector({i,j}) ));
   this->floor = Yancey_rect(0,true,{WIND_W,WIND_H},{WIND_W/2,WIND_H/2});
-  
-  /*
- 
-  this->ceiling = Yancey_rect(0,true,{WIND_W,BLOCKSIZE2},{WIND_W/2,0});
-  this->left_wall = Yancey_rect(0,true,{BLOCKSIZE2, WIND_H},{0,WIND_H/2});
-  this->right_wall = Yancey_rect(0,true,{BLOCKSIZE2, WIND_H},{WIND_W,WIND_H/2});
-   */
-  };
+    };
   
 //EVENTS
 
@@ -216,11 +208,11 @@ bool handle_key( SDL_KeyboardEvent *key )
       break;
     case SDLK_q:
     case SDLK_UP:    
-      	this->active_tet.location -= this->falls;
+      this->move_active(this->falls * -1);
       break;      
     case SDLK_s:
     case SDLK_DOWN:
-      this->move_active(this->falls) ;
+      this->move_active(this->falls);
       break;
     case SDLK_n:
     this->spawn();
