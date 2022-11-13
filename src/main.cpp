@@ -4,6 +4,6 @@
 int main()
 {
   Tetrits t;
-  if(t.init(0))
+  if(t.init())
   t.loop();
 }

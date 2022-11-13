@@ -14,7 +14,7 @@
 #define PARENTGAME SDLGame
 #define WINDOWFLAGS SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_JOYSTICK
 
-#define FALLING true
+//#define FALLING true
 #define USEJOY 
 
 #define FRAMERATE 10
@@ -86,7 +86,7 @@ class Tetrits : public SDLGame{
 public:
   Tetrits();
   ~Tetrits();
-  bool init(uint32_t flags);
+  bool init() override;
   bool update() override;
   bool spawn();
   void rotate_active(bool cw);
@@ -158,14 +158,15 @@ bool handle_events()
 	    if(SDL_JoystickGetAxis(this->joystick,1) < 0)
 	      {
 		//this->falls += SPEEDINC;
-		PARENTGAME::frames.framerate += SPEEDINCR;
-		log_i<<"FALLS: "<<this->falls.y<<" RATE: "<<PARENTGAME::frames.framerate<<std::endl;
-
+		//PARENTGAME::frames.framerate += SPEEDINCR;
+		//log_i<<"FALLS: "<<this->falls.y<<" RATE: "<<PARENTGAME::frames.framerate<<std::endl;
+		this->move_active(this->falls * -1);
 	      }
 	    if(SDL_JoystickGetAxis(this->joystick,1) > 0)
 	      {
-		if(PARENTGAME::frames.framerate > 1)PARENTGAME::frames.framerate -= SPEEDINCR;
-		log_i<<"FALLS: "<<this->falls.y<<" RATE: "<<PARENTGAME::frames.framerate<<std::endl;
+		//if(PARENTGAME::frames.framerate > 1)PARENTGAME::frames.framerate -= SPEEDINCR;
+		//log_i<<"FALLS: "<<this->falls.y<<" RATE: "<<PARENTGAME::frames.framerate<<std::endl;
+		 this->move_active(this->falls);
 	      }	  	    
 	    break;
           case SDL_JOYBUTTONDOWN :
