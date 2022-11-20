@@ -35,9 +35,10 @@ bool Tetrits::init()
 
 void Tetrits::reset()
 {
-  this->spawn();
   this->obstacles.clear();
   this->score = 0;
+  this->spawn();
+  this->paused = true;
 }
 
 bool Tetrits::spawn()
@@ -59,6 +60,14 @@ bool Tetrits::spawn()
   //Yancey_Vector spawnadj = {WIND_W % (WIND_W - int(this->falls.x)), WIND_H % (WIND_H - int(this->falls.y))};
   this->active_tet = Tetromino(spawn, BLOCK * 2, this->next_tet.shape);
 
+  Yancey_Vector ext = {0,0};
+  if(this->hits_obstacle(this->active_tet,ext) )
+    {
+      this->obstacles.clear();
+      this->score=0;
+      this->paused=true;
+    }
+  
   this->next_tet = Tetromino(NEXTLOC * BLOCKSIZE, BLOCK_N * 2, this->shapes[std::round(std::rand() % 7)]);
   return true;
 }
@@ -125,50 +134,61 @@ void Tetrits::settle()
 	  auto row_start = std::find_if(this->obstacles.begin(), this->obstacles.end(), lambda_obj);
 	  this->obstacles.erase(row_start,row_start+count);
 	  std::for_each(this->obstacles.begin(),row_start,[](Tetrits_Block &b) {b.location += SETTLE;});
-	  this->score += count;
-	}
-      
+	  this->score += count/10;
+	  if((this->score % 10) == 0)
+	    this->adjust_level(SPEEDINCR);
+	  
+	}      
     }
-
 }
+
+
 bool Tetrits::update()
 {
-  if(PARENTGAME::frames.ready && !this->paused)
+  if(!PARENTGAME::frames.ready )return true;
+
+  this->render_clear( GAMEBACKGROUND );
+  
+  if(this->paused)
     {
-      // this->update_score(PARENTGAME::frames.count);
-      
-       this->render_clear( GAMEBACKGROUND );
-       this->set_render_color(BLOCKCOLOR);
-	this->settle();
+      this->set_render_color(SCORECOLOR);
+      this->draw_level();
+      this->render_present(0);
+       PARENTGAME::frames.ready = false;
+       return true;
+    }
+
+  this->set_render_color(BLOCKCOLOR);
+  this->settle();
+  // if(this->down_pressed)this->move_active(this->falls);
 #ifdef FALLING
-	if(!this->move_active(this->falls))
+  if(!this->move_active(this->falls))
 	      this->spawn();	   
 #endif       
 
-       this->draw(this->active_tet);
+  this->draw_tet(this->active_tet);
        //little pivot square
-       this->draw_rectangle(this->active_tet.location-Yancey_Vector({2,2}),4,4);
+  this->draw_rectangle(this->active_tet.location-Yancey_Vector({2,2}),4,4);
 
-       this->draw(this->next_tet);
+  this->draw_tet(this->next_tet);
        
-       for(Tetrits_Block block : this->obstacles)
-	 {
+  for(Tetrits_Block block : this->obstacles)
+    {
 	   this->set_render_color(block.color);
 	   this->draw_rectangle(block.location - BLOCK , BLOCKSIZE2, BLOCKSIZE2);
 	   this->draw_rectangle(block.location - BLOCK / 2 , BLOCKSIZE, BLOCKSIZE);
-	 }
+    }
             
        //walls, floor
-       this->set_render_color(FLOORCOLOR);
-        this->draw_rectangle(this->floor.location - this->floor.size/2, this->floor.size.x,this->floor.size.y);
+  this->set_render_color(FLOORCOLOR);
+  this->draw_rectangle(this->floor.location - this->floor.size/2, this->floor.size.x,this->floor.size.y);
 	
 	//score
-	this->draw_num(SCORELOC + SCORESIZE/2, DIGITSIZE, this->score, 4, SCORECOLOR, GAMEBACKGROUND);
+  this->set_render_color(SCORECOLOR);
+  this->draw_num(SCORELOC, SCOREDIGITSIZE, this->score, 4, FILLSEGS);
 	
-       this->render_present(0);
-
-       PARENTGAME::frames.ready = false;
-    }
+  this->render_present(0);
+  PARENTGAME::frames.ready = false;    
   return true;
 }
 
@@ -246,6 +266,13 @@ void Tetrits::rotate_active(bool cw)
 	 }
        }
 }
+void Tetrits::adjust_level(int8_t adj)
+{
+  this->level = std::clamp(int(this->level + adj), 1, 20);
+  PARENTGAME::frames.framerate = this->level;
+  //log_i<<"FALLS: "<<this->falls.y<<" RATE: "<<PARENTGAME::frames.framerate<<std::endl;
+}
+    
 bool Tetrits::move_active(Yancey_Vector move)
   {
       Tetromino test = this->active_tet;
@@ -259,13 +286,19 @@ bool Tetrits::move_active(Yancey_Vector move)
 	return false;
       }
   }
+void Tetrits::down_press(bool pressed)
+{
+  this->down_pressed = pressed;
+  if(pressed)  PARENTGAME::frames.framerate = 20;
+  else   PARENTGAME::frames.framerate = this->level;
+}
 void Tetromino::rotate(bool cw)
 {  
 this->orientation = this->orientation.get_normal(cw);
 for(Tetrits_Block &b : this->blocks)
    b.location = b.location.get_normal(cw);
 }
-void Tetrits::draw(Tetromino &t)
+void Tetrits::draw_tet(Tetromino &t)
 {
   this->set_render_color(t.color);
        for(Tetrits_Block block : t.blocks)
@@ -275,4 +308,27 @@ void Tetrits::draw(Tetromino &t)
 	   this->draw_rectangle(block.location - block.size / 4 , block.size.x /2, block.size.y /2);
 	 }
 
+}
+void Tetrits::draw_level()
+{
+      this->draw_num(LEVELLOC, LEVELDIGITSIZE, PARENTGAME::frames.framerate, 2,  FILLSEGS);
+      Yancey_Vector s1 = { LEVELDIGITSIZE.x*-1.5,LEVELDIGITSIZE.y*-3};
+      Yancey_Vector s2 = { LEVELDIGITSIZE.x*-1.5,LEVELDIGITSIZE.y*3};
+      //this->debug_loc(LEVELLOC+s1);
+      std::vector<Yancey_Vector> arrow = {
+					  LEVELLOC + s1,
+					    LEVELLOC + s1 + Yancey_Vector({LEVELDIGITSIZE.x /2, LEVELDIGITSIZE.y*0}),
+					    LEVELLOC + s1 +Yancey_Vector({LEVELDIGITSIZE.x * 0, LEVELDIGITSIZE.y*-1}),
+					    LEVELLOC + s1 + Yancey_Vector({LEVELDIGITSIZE.x /-2, LEVELDIGITSIZE.y*0}),
+					  LEVELLOC + s1
+      };
+      this->draw_lines(arrow);
+      arrow = {
+					  LEVELLOC + s2,
+					    LEVELLOC + s2 + Yancey_Vector({LEVELDIGITSIZE.x /2, LEVELDIGITSIZE.y*0}),
+					    LEVELLOC + s2 +Yancey_Vector({LEVELDIGITSIZE.x * 0, LEVELDIGITSIZE.y*1}),
+					    LEVELLOC + s2 + Yancey_Vector({LEVELDIGITSIZE.x /-2, LEVELDIGITSIZE.y*0}),
+					  LEVELLOC + s2
+      };
+      this->draw_lines(arrow);
 }

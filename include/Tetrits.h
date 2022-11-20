@@ -14,7 +14,7 @@
 #define PARENTGAME SDLGame
 #define WINDOWFLAGS SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_JOYSTICK
 
-//#define FALLING true
+#define FALLING 
 #define USEJOY 
 
 #define FRAMERATE 10
@@ -33,9 +33,12 @@
 #define SPAWN_JLSTZ Yancey_Vector({9,3}) * BLOCKSIZE
 #define SETTLE Yancey_Vector({0,BLOCKSIZE2})
 #define NEXTLOC Yancey_Vector({17,2})
-#define SCORELOC Yancey_Vector({90,30})
-#define DIGITSIZE Yancey_Vector({10,20})// x*2 y*2
-#define SCORESIZE Yancey_Vector({90,40})
+#define FILLSEGS true
+#define SCORELOC Yancey_Vector({BLOCKSIZE*6,BLOCKSIZE*2})
+#define LEVELLOC Yancey_Vector({BLOCKSIZE*8,BLOCKSIZE*14})
+#define SCOREDIGITSIZE BLOCK/2//Yancey_Vector({BLOCKSIZE/2,BLOCKSIZE})// x*2 y*2
+#define LEVELDIGITSIZE (BLOCK*1)
+
 
 #define MOVE Yancey_Vector({BLOCKSIZE2 , 0})
 #define SPEEDINCR 1
@@ -45,14 +48,15 @@
 //#define EXT_DB this->falls + Yancey_Vector({0, BLOCKSIZE})
 
 
-#define LANDSEXT Yancey_Vector({0 , 2})
-#define HITSEXT Yancey_Vector({2 , 0})
+//#define LANDSEXT Yancey_Vector({0 , 2})
+//#define HITSEXT Yancey_Vector({2 , 0})
 
 #define GAMEBACKGROUND YANCEYCOLOR_Black
 #define BLOCKCOLOR YANCEYCOLOR_Blue
 #define FLOORCOLOR YANCEYCOLOR_SlateGray
 #define WALLCOLOR YANCEYCOLOR_White
 #define SCORECOLOR YANCEYCOLOR_Cyan
+
 
 class Tetrits_Block : public Yancey_rect{
 public:
@@ -93,21 +97,26 @@ public:
   bool move_active(Yancey_Vector m);
   void settle();
   void reset();
+  void draw_tet(Tetromino &t);
   void draw_score();
+  void draw_level();
   void update_score(int score);
   bool hits_obstacle(Tetromino &t, std::vector<Yancey_Vector> ext);
   bool hits_obstacle(Tetromino &t, Yancey_Vector ext);
   bool within_bounds(Tetromino &t, Yancey_Vector &ext);
-  //  bool within_bounds(Tetromino &t, std::vector<Yancey_Vector> ext);
-  void draw(Tetromino &t);
+  void down_press(bool pressed);
+  void adjust_level(int8_t adj);
+
   
   int score;
+  uint8_t level = FRAMERATE;
   std::vector<Yancey_Digit> score_digits;
   Tetromino active_tet;
   Tetromino next_tet;
   SDL_Joystick *joystick;
   std::vector<uint8_t> shapes = {'i','j','l','o','s','t','z'};
-  bool paused = false;
+  bool paused = true;
+  bool down_pressed = false;
   Yancey_Vector  falls = FALLS;
 
   std::vector<Tetrits_Block> obstacles = {};
@@ -142,41 +151,35 @@ bool handle_events()
 	    break;
 #ifdef USEJOY
           case SDL_JOYDEVICEADDED:
-	    this->joystick = SDL_JoystickOpen(ev.jdevice.which);
-	    log_i<< "Joystick index "<< ev.jdevice.which <<" added " <<std::endl;
+	    if(SDL_NumJoysticks() <2)
+	      {
+		this->joystick = SDL_JoystickOpen(ev.jdevice.which);
+		log_i<< "Joystick, index "<< ev.jdevice.which <<", added " <<std::endl;
+	      }
 	    break;
 	     
            case SDL_JOYAXISMOTION:
-	    if(SDL_JoystickGetAxis(this->joystick,0) < 0)
-	      {
-		this->move_active(MOVE * -1);
-	      }
-	    if(SDL_JoystickGetAxis(this->joystick,0) > 0)
-	      {
-		this->move_active(MOVE);
-	      }
-	    if(SDL_JoystickGetAxis(this->joystick,1) < 0)
-	      {
-		//this->falls += SPEEDINC;
-		//PARENTGAME::frames.framerate += SPEEDINCR;
-		//log_i<<"FALLS: "<<this->falls.y<<" RATE: "<<PARENTGAME::frames.framerate<<std::endl;
-		this->move_active(this->falls * -1);
-	      }
-	    if(SDL_JoystickGetAxis(this->joystick,1) > 0)
-	      {
-		//if(PARENTGAME::frames.framerate > 1)PARENTGAME::frames.framerate -= SPEEDINCR;
-		//log_i<<"FALLS: "<<this->falls.y<<" RATE: "<<PARENTGAME::frames.framerate<<std::endl;
-		 this->move_active(this->falls);
-	      }	  	    
+	     if(!this->paused)
+	       {
+		 log_i<< SDL_JoystickGetAxis(this->joystick,1)<< std::endl;
+		 if(SDL_JoystickGetAxis(this->joystick,0) < 0)this->move_active(MOVE * -1);	      
+		 if(SDL_JoystickGetAxis(this->joystick,0) > 0)this->move_active(MOVE);	      
+		 if(SDL_JoystickGetAxis(this->joystick,1) < 0)this->move_active(this->falls * -1);
+		 if(SDL_JoystickGetAxis(this->joystick,1) > 0)this->down_press(true);
+		 if(SDL_JoystickGetAxis(this->joystick,1) == 0)this->down_press(false);
+	       }else{
+	       if(SDL_JoystickGetAxis(this->joystick,1) < 0)this->adjust_level(SPEEDINCR);
+	       if(SDL_JoystickGetAxis(this->joystick,1) > 0)this->adjust_level(-SPEEDINCR);
+	       }
 	    break;
           case SDL_JOYBUTTONDOWN :
-	    //	    for(int j=0; j < SDL_JoystickNumButtons(this->joystick); j++){
-	    //A=1,B=2,start=9,select=8
+	    if(!this->paused)
+	      {
 	    if(SDL_JoystickGetButton(this->joystick, 1)) this->rotate_active(false);
 	    if(SDL_JoystickGetButton(this->joystick, 2)) this->rotate_active(true);
+	      }
 	    if(SDL_JoystickGetButton(this->joystick, 8)) this->reset();
-	    if(SDL_JoystickGetButton(this->joystick, 9)) this->paused = !this->paused;
-	      
+	    if(SDL_JoystickGetButton(this->joystick, 9)) this->paused = !this->paused;	      
 	    break;
 #endif
        }
@@ -193,11 +196,10 @@ bool handle_key( SDL_KeyboardEvent *key )
       this->reset();
       break;
     case SDLK_l:
-      PARENTGAME::frames.framerate += SPEEDINCR;
-      log_i<<"FALLS: "<<this->falls.y<<" RATE: "<<PARENTGAME::frames.framerate<<std::endl;      break;
+      this->adjust_level(SPEEDINCR);
+      break;
     case SDLK_k:
-      if(PARENTGAME::frames.framerate > 1)PARENTGAME::frames.framerate -= SPEEDINCR;
-      log_i<<"FALLS: "<<this->falls.y<<" RATE: "<<PARENTGAME::frames.framerate<<std::endl;
+      this->adjust_level(-SPEEDINCR);
       break;
     case SDLK_LEFT:
     case SDLK_a:
@@ -218,9 +220,11 @@ bool handle_key( SDL_KeyboardEvent *key )
     case SDLK_n:
     this->spawn();
     break;
+    case SDLK_PAGEUP:
     case SDLK_w:
       this->rotate_active(false);
       break;
+    case SDLK_PAGEDOWN:
     case SDLK_e:
       this->rotate_active(true);
       break;
