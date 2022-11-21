@@ -27,7 +27,6 @@ bool Tetrits::init()
   this->init_floor();
   std::srand(time(0));
   this->next_tet = Tetromino(NEXTLOC, BLOCK_N * 2, this->shapes[std::round(std::rand() % 7)]);
-  this->spawn();
   this->reset();
 
   return true;
@@ -61,13 +60,14 @@ bool Tetrits::spawn()
   this->active_tet = Tetromino(spawn, BLOCK * 2, this->next_tet.shape);
 
   Yancey_Vector ext = {0,0};
-  if(this->hits_obstacle(this->active_tet,ext) )
+  if(this->obstacles.size() > 200)
     {
+      this->quit_soon =0;
       this->obstacles.clear();
       this->score=0;
       this->paused=true;
     }
-  
+     
   this->next_tet = Tetromino(NEXTLOC * BLOCKSIZE, BLOCK_N * 2, this->shapes[std::round(std::rand() % 7)]);
   return true;
 }
@@ -268,7 +268,7 @@ void Tetrits::rotate_active(bool cw)
 }
 void Tetrits::adjust_level(int8_t adj)
 {
-  this->level = std::clamp(int(this->level + adj), 1, 20);
+  this->level = std::clamp(int(this->level + adj), 1, MAXFRAMERATE);
   PARENTGAME::frames.framerate = this->level;
   //log_i<<"FALLS: "<<this->falls.y<<" RATE: "<<PARENTGAME::frames.framerate<<std::endl;
 }
@@ -289,7 +289,7 @@ bool Tetrits::move_active(Yancey_Vector move)
 void Tetrits::down_press(bool pressed)
 {
   this->down_pressed = pressed;
-  if(pressed)  PARENTGAME::frames.framerate = 20;
+  if(pressed)  PARENTGAME::frames.framerate = MAXFRAMERATE;
   else   PARENTGAME::frames.framerate = this->level;
 }
 void Tetromino::rotate(bool cw)
@@ -311,7 +311,7 @@ void Tetrits::draw_tet(Tetromino &t)
 }
 void Tetrits::draw_level()
 {
-      this->draw_num(LEVELLOC, LEVELDIGITSIZE, PARENTGAME::frames.framerate, 2,  FILLSEGS);
+      this->draw_num(LEVELLOC, LEVELDIGITSIZE, this->level, 2,  FILLSEGS);
       Yancey_Vector s1 = { LEVELDIGITSIZE.x*-1.5,LEVELDIGITSIZE.y*-3};
       Yancey_Vector s2 = { LEVELDIGITSIZE.x*-1.5,LEVELDIGITSIZE.y*3};
       //this->debug_loc(LEVELLOC+s1);

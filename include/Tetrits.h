@@ -18,6 +18,7 @@
 #define USEJOY 
 
 #define FRAMERATE 10
+#define MAXFRAMERATE 40
 #define FALLS Yancey_Vector({0,20})
 
 #define BLOCKSIZE 20 // * 2
@@ -36,12 +37,13 @@
 #define FILLSEGS true
 #define SCORELOC Yancey_Vector({BLOCKSIZE*6,BLOCKSIZE*2})
 #define LEVELLOC Yancey_Vector({BLOCKSIZE*8,BLOCKSIZE*14})
-#define SCOREDIGITSIZE BLOCK/2//Yancey_Vector({BLOCKSIZE/2,BLOCKSIZE})// x*2 y*2
+#define SCOREDIGITSIZE BLOCK/2
 #define LEVELDIGITSIZE (BLOCK*1)
 
 
 #define MOVE Yancey_Vector({BLOCKSIZE2 , 0})
 #define SPEEDINCR 1
+#define GAMEEND 10
 #define EXT_L (Yancey_Vector({-BLOCKSIZE , 0})  )
 #define EXT_R (Yancey_Vector({BLOCKSIZE , 0})  )
 #define EXT_D this->falls
@@ -110,6 +112,7 @@ public:
   
   int score;
   uint8_t level = FRAMERATE;
+  uint8_t quit_soon = 0;
   std::vector<Yancey_Digit> score_digits;
   Tetromino active_tet;
   Tetromino next_tet;
@@ -161,7 +164,7 @@ bool handle_events()
            case SDL_JOYAXISMOTION:
 	     if(!this->paused)
 	       {
-		 log_i<< SDL_JoystickGetAxis(this->joystick,1)<< std::endl;
+		 // log_i<< SDL_JoystickGetAxis(this->joystick,1)<< std::endl;
 		 if(SDL_JoystickGetAxis(this->joystick,0) < 0)this->move_active(MOVE * -1);	      
 		 if(SDL_JoystickGetAxis(this->joystick,0) > 0)this->move_active(MOVE);	      
 		 if(SDL_JoystickGetAxis(this->joystick,1) < 0)this->move_active(this->falls * -1);
@@ -178,7 +181,7 @@ bool handle_events()
 	    if(SDL_JoystickGetButton(this->joystick, 1)) this->rotate_active(false);
 	    if(SDL_JoystickGetButton(this->joystick, 2)) this->rotate_active(true);
 	      }
-	    if(SDL_JoystickGetButton(this->joystick, 8)) this->reset();
+	    //if(SDL_JoystickGetButton(this->joystick, 8)) this->reset();
 	    if(SDL_JoystickGetButton(this->joystick, 9)) this->paused = !this->paused;	      
 	    break;
 #endif
