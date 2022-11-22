@@ -32,6 +32,17 @@ bool Tetrits::init()
   return true;
 }
 
+void Tetrits::resize()
+{
+  Yancey_Vector old = this->floor.location;//{this->wind_w,wind_h};
+  this->getWindowSize();
+  this->floor.location = {this->wind_w / 2 , this->wind_h /2};
+  Yancey_Vector diff = (old - this->floor.location);
+  log_i<< diff <<std::endl;
+  this->next_tet.location -= diff;
+  this->active_tet.location -= diff;
+  std::for_each(this->obstacles.begin(),this->obstacles.end(),[diff](Tetrits_Block &b){b.location-=diff;});
+}
 void Tetrits::reset()
 {
   this->obstacles.clear();
@@ -68,7 +79,7 @@ bool Tetrits::spawn()
       this->paused=true;
     }
      
-  this->next_tet = Tetromino(NEXTLOC * BLOCKSIZE, BLOCK_N * 2, this->shapes[std::round(std::rand() % 7)]);
+  this->next_tet = Tetromino(NEXTLOC, BLOCK_N * 2, this->shapes[std::round(std::rand() % 7)]);
   return true;
 }
 
@@ -86,9 +97,9 @@ bool Tetrits::within_bounds(Tetromino &t, Yancey_Vector &ext)
   int ret = std::count_if(t.blocks.begin(), t.blocks.end(), [this,&t,&ext](Tetrits_Block b){
       b.location *= BLOCKSIZE;
       b.location += t.location;      
-      bool ret2 = b.location.x > 0;
-      bool ret3 = b.location.x < WIND_W;
-      bool ret4 = b.location.y < WIND_H;
+      bool ret2 = b.location.x > this->floor.getTopLeft().x;
+      bool ret3 = b.location.x < this->floor.getBottomRight().x;
+      bool ret4 = b.location.y < this->floor.getBottomRight().y;
       if(!ret2 && b.location.x < ext.x) ext = b.location;       
       if(!ret3 && b.location.x > ext.x) ext = b.location;       
       if(!ret4 && b.location.y > ext.y) ext = b.location;       
@@ -120,7 +131,7 @@ void Tetrits::settle()
   auto row_compare = [] (Tetrits_Block &b1, Tetrits_Block &b2) {return b1.location.y < b2.location.y;};
   std::sort(this->obstacles.begin(),this->obstacles.end(),row_compare);
   
-  for(int i = WIND_H - BLOCKSIZE;i > 0 ;i -= BLOCKSIZE2)
+  for(int i = this->floor.getBottomRight().y - BLOCKSIZE;i > 0 ;i -= BLOCKSIZE2)
     {
       auto lambda_obj = [i] (Tetrits_Block b) {return b == i;};      
       int count = std::count_if(this->obstacles.begin(), this->obstacles.end(), lambda_obj);
@@ -153,6 +164,10 @@ bool Tetrits::update()
     {
       this->set_render_color(SCORECOLOR);
       this->draw_level();
+      
+       //walls, floor
+      this->set_render_color(FLOORCOLOR);
+      this->draw_rectangle(this->floor.getTopLeft(), this->floor.size.x,this->floor.size.y);
       this->render_present(0);
        PARENTGAME::frames.ready = false;
        return true;
@@ -181,7 +196,7 @@ bool Tetrits::update()
             
        //walls, floor
   this->set_render_color(FLOORCOLOR);
-  this->draw_rectangle(this->floor.location - this->floor.size/2, this->floor.size.x,this->floor.size.y);
+  this->draw_rectangle(this->floor.getTopLeft(), this->floor.size.x,this->floor.size.y);
 	
 	//score
   this->set_render_color(SCORECOLOR);
@@ -246,7 +261,7 @@ void Tetrits::rotate_active(bool cw)
 {  
   Tetromino test = this->active_tet;
   test.rotate(cw);
-  Yancey_Vector bloc = {0,0};
+  Yancey_Vector bloc = {this->floor.getTopLeft().x,this->floor.getBottomRight().y};
   bool ib =this->within_bounds(test, bloc);    
   if(ib)
      {
@@ -254,13 +269,13 @@ void Tetrits::rotate_active(bool cw)
 	   this->active_tet.rotate(cw);	 
      }else{
 	Yancey_Vector move = {0,0};
-	if(bloc.x < 0)     test.location.x  += (0 - bloc.x) + BLOCKSIZE;
-	if(bloc.x > WIND_W)test.location.x  += (WIND_W - bloc.x) - BLOCKSIZE;
-	if(bloc.y > WIND_H)test.location.y  += (WIND_H - bloc.y) - BLOCKSIZE;
+	if(bloc.x < this->floor.getTopLeft().x)    test.location.x  += (this->floor.getTopLeft().x - bloc.x) + BLOCKSIZE;
+	if(bloc.x > this->floor.getBottomRight().x)test.location.x  += (this->floor.getBottomRight().x - bloc.x) - BLOCKSIZE;
+	if(bloc.y > this->floor.getBottomRight().y)test.location.y  += (this->floor.getBottomRight().y - bloc.y) - BLOCKSIZE;
 	
        if(!hits_obstacle(test,{EXT_L,EXT_R,EXT_D}))
 	 {	   
-	   log_i<< bloc<< " kick it"  <<std::endl;
+	   log_i<< bloc << " kick it"  <<std::endl;
 	   this->active_tet.rotate(cw);
 	   this->active_tet.location = test.location;
 	 }

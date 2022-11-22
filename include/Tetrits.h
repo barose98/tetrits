@@ -30,18 +30,18 @@
 
 #define BLOCK Yancey_Vector({BLOCKSIZE,BLOCKSIZE})
 #define BLOCK_N Yancey_Vector({BLOCKSIZE_N,BLOCKSIZE_N})
-#define SPAWN_IO Yancey_Vector({8,2}) * BLOCKSIZE
-#define SPAWN_JLSTZ Yancey_Vector({9,3}) * BLOCKSIZE
+#define SPAWN_IO (this->floor.getTopLeft() + Yancey_Vector({8,2}) * BLOCKSIZE)
+#define SPAWN_JLSTZ (this->floor.getTopLeft() + Yancey_Vector({9,3}) * BLOCKSIZE)
 #define SETTLE Yancey_Vector({0,BLOCKSIZE2})
-#define NEXTLOC Yancey_Vector({17,2})
+#define NEXTLOC (this->floor.getTopLeft() + Yancey_Vector({17,2}) * BLOCKSIZE)
 #define FILLSEGS true
-#define SCORELOC Yancey_Vector({BLOCKSIZE*6,BLOCKSIZE*2})
-#define LEVELLOC Yancey_Vector({BLOCKSIZE*8,BLOCKSIZE*14})
+#define SCORELOC (this->floor.getTopLeft() + Yancey_Vector({BLOCKSIZE*6,BLOCKSIZE*2}))
+#define LEVELLOC (this->floor.getTopLeft() + Yancey_Vector({BLOCKSIZE*8,BLOCKSIZE*14}))
 #define SCOREDIGITSIZE BLOCK/2
 #define LEVELDIGITSIZE (BLOCK*1)
 
 
-#define MOVE Yancey_Vector({BLOCKSIZE2 , 0})
+#define MOVE Yancey_Vector({BLOCKSIZE2, 0})
 #define SPEEDINCR 1
 #define GAMEEND 10
 #define EXT_L (Yancey_Vector({-BLOCKSIZE , 0})  )
@@ -99,6 +99,7 @@ public:
   bool move_active(Yancey_Vector m);
   void settle();
   void reset();
+  void resize();
   void draw_tet(Tetromino &t);
   void draw_score();
   void draw_level();
@@ -146,7 +147,7 @@ bool handle_events()
 	     return false;
           case SDL_WINDOWEVENT:
 	    if(ev.window.event == SDL_WINDOWEVENT_SIZE_CHANGED){
-	        SDL_GetWindowSize(this->window,&this->wind_w,&this->wind_h);
+	      this->resize();
 	    }
 	    break;
           case SDL_KEYDOWN:
