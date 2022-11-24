@@ -10,7 +10,7 @@ set(SDL2_DIR "/usr/lib/aarch64-linux-gnu/cmake/SDL2")
 find_package(SDL2 REQUIRED)
 #find_package(SDL2TTF REQUIRED)
 find_package(OpenGL REQUIRED)
-find_package(Box2D REQUIRED)
+#find_package(Box2D REQUIRED)
 
 add_library (${LIB_NAME} STATIC
 ${YANCEY_BASE_DIR}/src/YanceyBase.cpp

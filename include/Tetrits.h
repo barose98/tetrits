@@ -207,7 +207,7 @@ bool handle_key( SDL_KeyboardEvent *key )
       break;
     case SDLK_LEFT:
     case SDLK_a:
-      this->move_active(-MOVE) ;
+      this->move_active(MOVE*-1) ;
       break;
     case SDLK_RIGHT:
     case SDLK_d:
