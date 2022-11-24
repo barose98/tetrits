@@ -32,4 +32,4 @@ target_include_directories (${LIB_NAME} PUBLIC
 
 #message()
 
-target_link_libraries(${LIB_NAME} ${SDL2_LIBRARIES} ${OPENGL_LIBRARIES} ${SDL2_TTF_LIBRARIES} -lSDL2_ttf )
+target_link_libraries(${LIB_NAME} ${SDL2_LIBRARIES} ${OPENGL_LIBRARIES} ${SDL2_TTF_LIBRARIES}  )
