@@ -207,7 +207,7 @@ bool handle_key( SDL_KeyboardEvent *key )
       break;
     case SDLK_LEFT:
     case SDLK_a:
-      this->move_active(MOVE *-1) ;
+      this->move_active(-MOVE) ;
       break;
     case SDLK_RIGHT:
     case SDLK_d:
@@ -215,11 +215,13 @@ bool handle_key( SDL_KeyboardEvent *key )
       break;
     case SDLK_q:
     case SDLK_UP:    
-      this->move_active(this->falls * -1);
+      if(this->paused)this->adjust_level(SPEEDINCR);
+      else this->move_active(this->falls * -1);
       break;      
     case SDLK_s:
     case SDLK_DOWN:
-      this->move_active(this->falls);
+      if(this->paused)this->adjust_level(-SPEEDINCR);
+      else this->move_active(this->falls);
       break;
     case SDLK_n:
     this->spawn();
@@ -232,6 +234,7 @@ bool handle_key( SDL_KeyboardEvent *key )
     case SDLK_e:
       this->rotate_active(true);
       break;
+    case SDLK_RETURN:
     case SDLK_SPACE:
       this->paused = !this->paused;
       break;
